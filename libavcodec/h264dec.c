@@ -156,6 +156,7 @@ void ff_h264_free_tables(H264Context *h)
 
     av_buffer_pool_uninit(&h->qscale_table_pool);
     av_buffer_pool_uninit(&h->mb_type_pool);
+    av_buffer_pool_uninit(&h->sub_mb_type_pool);
     av_buffer_pool_uninit(&h->motion_val_pool);
     av_buffer_pool_uninit(&h->ref_index_pool);
 

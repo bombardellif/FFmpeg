@@ -56,6 +56,7 @@ void ff_h264_unref_picture(H264Context *h, H264Picture *pic)
 
     av_buffer_unref(&pic->qscale_table_buf);
     av_buffer_unref(&pic->mb_type_buf);
+    av_buffer_unref(&pic->sub_mb_type_buf);
     for (i = 0; i < 2; i++) {
         av_buffer_unref(&pic->motion_val_buf[i]);
         av_buffer_unref(&pic->ref_index_buf[i]);
@@ -79,10 +80,12 @@ int ff_h264_ref_picture(H264Context *h, H264Picture *dst, H264Picture *src)
 
     dst->qscale_table_buf = av_buffer_ref(src->qscale_table_buf);
     dst->mb_type_buf      = av_buffer_ref(src->mb_type_buf);
-    if (!dst->qscale_table_buf || !dst->mb_type_buf)
+    dst->sub_mb_type_buf  = av_buffer_ref(src->sub_mb_type_buf);
+    if (!dst->qscale_table_buf || !dst->mb_type_buf || !dst->sub_mb_type_buf)
         goto fail;
     dst->qscale_table = src->qscale_table;
     dst->mb_type      = src->mb_type;
+    dst->sub_mb_type  = src->sub_mb_type;
 
     for (i = 0; i < 2; i++) {
         dst->motion_val_buf[i] = av_buffer_ref(src->motion_val_buf[i]);

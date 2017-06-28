@@ -138,6 +138,9 @@ typedef struct H264Picture {
     AVBufferRef *mb_type_buf;
     uint32_t *mb_type;
 
+    AVBufferRef *sub_mb_type_buf;
+    uint16_t *(sub_mb_type[4]);
+
     AVBufferRef *hwaccel_priv_buf;
     void *hwaccel_picture_private; ///< hardware accelerator private data
 
@@ -546,6 +549,7 @@ typedef struct H264Context {
 
     AVBufferPool *qscale_table_pool;
     AVBufferPool *mb_type_pool;
+    AVBufferPool *sub_mb_type_pool;
     AVBufferPool *motion_val_pool;
     AVBufferPool *ref_index_pool;
     int ref2frm[MAX_SLICES][2][64];     ///< reference to frame number lists, used in the loop filter, the first 2 are for -2,-1
