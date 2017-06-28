@@ -1577,7 +1577,8 @@ static int add_mb(AVMotionVector *mb, uint32_t mb_type,
  * Print debugging info for the given picture.
  */
 void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_table,
-                         uint32_t *mbtype_table, int8_t *qscale_table, int16_t (*motion_val[2])[2],
+                         uint32_t *mbtype_table, uint16_t *(sub_mbtype_table[4]),
+                         int8_t *qscale_table, int16_t (*motion_val[2])[2],
                          int *low_delay,
                          int mb_width, int mb_height, int mb_stride, int quarter_sample)
 {
@@ -1960,7 +1961,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
 
 void ff_print_debug_info(MpegEncContext *s, Picture *p, AVFrame *pict)
 {
-    ff_print_debug_info2(s->avctx, pict, s->mbskip_table, p->mb_type,
+    ff_print_debug_info2(s->avctx, pict, s->mbskip_table, p->mb_type, NULL,
                          p->qscale_table, p->motion_val, &s->low_delay,
                          s->mb_width, s->mb_height, s->mb_stride, s->quarter_sample);
 }

@@ -928,6 +928,7 @@ static int finalize_frame(H264Context *h, AVFrame *dst, H264Picture *out, int *g
         if (CONFIG_MPEGVIDEO) {
             ff_print_debug_info2(h->avctx, dst, NULL,
                                  out->mb_type,
+                                 out->sub_mb_type,
                                  out->qscale_table,
                                  out->motion_val,
                                  NULL,
