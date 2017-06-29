@@ -1590,20 +1590,40 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                                    (avctx->codec->id == AV_CODEC_ID_H264 ? 0 : 1);
         int mb_x, mb_y, mbcount = 0;
 
-        /* size is width * height * 2 * 4 where 2 is for directions and 4 is
-         * for the maximum number of MB (4 MB in case of IS_8x8) */
-        AVMotionVector *mvs = av_malloc_array(mb_width * mb_height, 2 * 4 * sizeof(AVMotionVector));
+        AVMotionVector *mvs;
+        if (sub_mbtype_table == NULL) {
+            /* size is width * height * 2 * 4 where 2 is for directions and 4 is
+             * for the maximum number of MB (4 MB in case of IS_8x8) */
+            mvs = av_malloc_array(mb_width * mb_height, 2 * 4 * sizeof(AVMotionVector));
+        } else {
+            /* size is width * height * 2 * 16 where 2 is for directions and 16 is
+             * for the maximum number of motion vectors in a MB (this is the case
+             * when the MB has type 8x8 and each sub MB  has type 4x4) */
+            mvs = av_malloc_array(mb_width * mb_height, 2 * 16 * sizeof(AVMotionVector));
+        }
         if (!mvs)
             return;
 
         for (mb_y = 0; mb_y < mb_height; mb_y++) {
             for (mb_x = 0; mb_x < mb_width; mb_x++) {
-                int i, direction, mb_type = mbtype_table[mb_x + mb_y * mb_stride];
+                int i, direction,
+                    idx_mb_table = mb_x + mb_y * mb_stride,
+                    mb_type = mbtype_table[idx_mb_table];
                 for (direction = 0; direction < 2; direction++) {
                     if (!USES_LIST(mb_type, direction))
                         continue;
                     if (IS_8X8(mb_type)) {
+                        uint16_t *sub_mb_type = sub_mbtype_table[idx_mb_table];
                         for (i = 0; i < 4; i++) {
+                            if (IS_SUB_8X8(sub_mb_type[i])) {
+                                av_log(avctx, AV_LOG_DEBUG, "SUB 8x8");
+                            } else if (IS_SUB_8X4(sub_mb_type[i])) {
+                                av_log(avctx, AV_LOG_DEBUG, "SUB 8x4");
+                            } else if (IS_SUB_4X8(sub_mb_type[i])) {
+                                av_log(avctx, AV_LOG_DEBUG, "SUB 4x8");
+                            } else {
+                                av_log(avctx, AV_LOG_DEBUG, "SUB 4x4");
+                            }
                             int sx = mb_x * 16 + 4 + 8 * (i & 1);
                             int sy = mb_y * 16 + 4 + 8 * (i >> 1);
                             int xy = (mb_x * 2 + (i & 1) +
