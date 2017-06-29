@@ -2384,6 +2384,7 @@ decode_intra_mb:
         }
     }
     h->cur_pic.mb_type[mb_xy] = mb_type;
+    memcpy(h->cur_pic.sub_mb_type[mb_xy], sl->sub_mb_type, sizeof(sl->sub_mb_type));
 
     if( cbp || IS_INTRA16x16( mb_type ) ) {
         const uint8_t *scan, *scan8x8;

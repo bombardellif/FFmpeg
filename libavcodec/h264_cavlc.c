@@ -1093,6 +1093,7 @@ decode_intra_mb:
     sl->cbp=
     h->cbp_table[mb_xy]= cbp;
     h->cur_pic.mb_type[mb_xy] = mb_type;
+    memcpy(h->cur_pic.sub_mb_type[mb_xy], sl->sub_mb_type, sizeof(sl->sub_mb_type));
 
     if(cbp || IS_INTRA16x16(mb_type)){
         int i4x4, i8x8, chroma_idx;
