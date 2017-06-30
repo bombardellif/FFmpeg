@@ -1554,13 +1554,13 @@ static void draw_arrow(uint8_t *buf, int sx, int sy, int ex,
 }
 #endif
 
-static int add_mb(AVMotionVector *mb, uint32_t mb_type,
+static int add_mb(AVMotionVector *mb, uint8_t width, uint8_t height,
                   int dst_x, int dst_y,
                   int motion_x, int motion_y, int motion_scale,
                   int direction)
 {
-    mb->w = IS_8X8(mb_type) || IS_8X16(mb_type) ? 8 : 16;
-    mb->h = IS_8X8(mb_type) || IS_16X8(mb_type) ? 8 : 16;
+    mb->w = width;
+    mb->h = height;
     mb->motion_x = motion_x;
     mb->motion_y = motion_y;
     mb->motion_scale = motion_scale;
@@ -1591,46 +1591,73 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
         int mb_x, mb_y, mbcount = 0;
 
         AVMotionVector *mvs;
-        if (sub_mbtype_table == NULL) {
-            /* size is width * height * 2 * 4 where 2 is for directions and 4 is
-             * for the maximum number of MB (4 MB in case of IS_8x8) */
-            mvs = av_malloc_array(mb_width * mb_height, 2 * 4 * sizeof(AVMotionVector));
-        } else {
+        if (sub_mbtype_table) {
             /* size is width * height * 2 * 16 where 2 is for directions and 16 is
              * for the maximum number of motion vectors in a MB (this is the case
              * when the MB has type 8x8 and each sub MB  has type 4x4) */
             mvs = av_malloc_array(mb_width * mb_height, 2 * 16 * sizeof(AVMotionVector));
+        } else {
+            /* size is width * height * 2 * 4 where 2 is for directions and 4 is
+             * for the maximum number of MB (4 MB in case of IS_8x8) */
+            mvs = av_malloc_array(mb_width * mb_height, 2 * 4 * sizeof(AVMotionVector));
         }
         if (!mvs)
             return;
 
         for (mb_y = 0; mb_y < mb_height; mb_y++) {
             for (mb_x = 0; mb_x < mb_width; mb_x++) {
-                int i, direction,
-                    idx_mb_table = mb_x + mb_y * mb_stride,
-                    mb_type = mbtype_table[idx_mb_table];
+                const int mb_index = mb_x + mb_y * mb_stride;
+                int i, direction, mb_type = mbtype_table[mb_index];
+
                 for (direction = 0; direction < 2; direction++) {
                     if (!USES_LIST(mb_type, direction))
                         continue;
                     if (IS_8X8(mb_type)) {
-                        uint16_t *sub_mb_type = sub_mbtype_table[idx_mb_table];
+                        const uint16_t *sub_mb_type = sub_mbtype_table 
+                            ? sub_mbtype_table[mb_index] : NULL;
                         for (i = 0; i < 4; i++) {
-                            if (IS_SUB_8X8(sub_mb_type[i])) {
-                                av_log(avctx, AV_LOG_DEBUG, "SUB 8x8");
-                            } else if (IS_SUB_8X4(sub_mb_type[i])) {
-                                av_log(avctx, AV_LOG_DEBUG, "SUB 8x4");
-                            } else if (IS_SUB_4X8(sub_mb_type[i])) {
-                                av_log(avctx, AV_LOG_DEBUG, "SUB 4x8");
-                            } else {
-                                av_log(avctx, AV_LOG_DEBUG, "SUB 4x4");
-                            }
+                            int j;
                             int sx = mb_x * 16 + 4 + 8 * (i & 1);
                             int sy = mb_y * 16 + 4 + 8 * (i >> 1);
                             int xy = (mb_x * 2 + (i & 1) +
                                       (mb_y * 2 + (i >> 1)) * mv_stride) << (mv_sample_log2 - 1);
-                            int mx = motion_val[direction][xy][0];
-                            int my = motion_val[direction][xy][1];
-                            mbcount += add_mb(mvs + mbcount, mb_type, sx, sy, mx, my, scale, direction);
+                            if (!sub_mb_type || IS_SUB_8X8(sub_mb_type[i])) {
+                                int mx = motion_val[direction][xy][0];
+                                int my = motion_val[direction][xy][1];
+                                mbcount += add_mb(mvs + mbcount, 8, 8, sx, sy,
+                                                  mx, my, scale, direction);
+                            } else if (IS_SUB_8X4(sub_mb_type[i])) {
+                                for (j = 0; j < 2; j++) {
+                                    int sy_finer = sy - 4 + 8*j;
+                                    int xy_finer = xy + mv_stride * j;
+                                    int mx = motion_val[direction][xy_finer][0];
+                                    int my = motion_val[direction][xy_finer][1];
+                                    mbcount += add_mb(mvs + mbcount, 8, 4,
+                                                      sx, sy_finer, mx, my,
+                                                      scale, direction);
+                                }
+                            } else if (IS_SUB_4X8(sub_mb_type[i])) {
+                                for (j = 0; j < 2; j++) {
+                                    int sx_finer = sx - 4 + 8*j;
+                                    int xy_finer = xy + j;
+                                    int mx = motion_val[direction][xy_finer][0];
+                                    int my = motion_val[direction][xy_finer][1];
+                                    mbcount += add_mb(mvs + mbcount, 4, 8,
+                                                      sx_finer, sy, mx, my,
+                                                      scale, direction);
+                                }
+                            } else {
+                                for (j = 0; j < 4; j++) {
+                                    int sx_finer = sx - 4 + 8*(j&1);
+                                    int sy_finer = sy - 4 + 8*(j>>1);
+                                    int xy_finer = xy + (j&1) + mv_stride * (j>>1);
+                                    int mx = motion_val[direction][xy_finer][0];
+                                    int my = motion_val[direction][xy_finer][1];
+                                    mbcount += add_mb(mvs + mbcount, 4, 4,
+                                                      sx_finer, sy_finer, mx, my,
+                                                      scale, direction);
+                                }
+                            }
                         }
                     } else if (IS_16X8(mb_type)) {
                         for (i = 0; i < 2; i++) {
@@ -1643,7 +1670,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                             if (IS_INTERLACED(mb_type))
                                 my *= 2;
 
-                            mbcount += add_mb(mvs + mbcount, mb_type, sx, sy, mx, my, scale, direction);
+                            mbcount += add_mb(mvs + mbcount, 16, 8, sx, sy, mx, my, scale, direction);
                         }
                     } else if (IS_8X16(mb_type)) {
                         for (i = 0; i < 2; i++) {
@@ -1656,7 +1683,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                             if (IS_INTERLACED(mb_type))
                                 my *= 2;
 
-                            mbcount += add_mb(mvs + mbcount, mb_type, sx, sy, mx, my, scale, direction);
+                            mbcount += add_mb(mvs + mbcount, 8, 16, sx, sy, mx, my, scale, direction);
                         }
                     } else {
                           int sx = mb_x * 16 + 8;
@@ -1664,7 +1691,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                           int xy = (mb_x + mb_y * mv_stride) << mv_sample_log2;
                           int mx = motion_val[direction][xy][0];
                           int my = motion_val[direction][xy][1];
-                          mbcount += add_mb(mvs + mbcount, mb_type, sx, sy, mx, my, scale, direction);
+                          mbcount += add_mb(mvs + mbcount, 16, 16, sx, sy, mx, my, scale, direction);
                     }
                 }
             }
