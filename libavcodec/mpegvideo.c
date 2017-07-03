@@ -1594,7 +1594,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
         if (sub_mbtype_table) {
             /* size is width * height * 2 * 16 where 2 is for directions and 16 is
              * for the maximum number of motion vectors in a MB (this is the case
-             * when the MB has type 8x8 and each sub MB  has type 4x4) */
+             * when the MB has type 8x8 and each sub MB has type 4x4) */
             mvs = av_malloc_array(mb_width * mb_height, 2 * 16 * sizeof(AVMotionVector));
         } else {
             /* size is width * height * 2 * 4 where 2 is for directions and 4 is
@@ -1613,7 +1613,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                     if (!USES_LIST(mb_type, direction))
                         continue;
                     if (IS_8X8(mb_type)) {
-                        const uint16_t *sub_mb_type = sub_mbtype_table 
+                        const uint16_t *sub_mb_type = sub_mbtype_table
                             ? sub_mbtype_table[mb_index] : NULL;
                         for (i = 0; i < 4; i++) {
                             int j;
@@ -1628,7 +1628,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                                                   mx, my, scale, direction);
                             } else if (IS_SUB_8X4(sub_mb_type[i])) {
                                 for (j = 0; j < 2; j++) {
-                                    int sy_finer = sy - 4 + 8*j;
+                                    int sy_finer = sy - 2 + 4*j;
                                     int xy_finer = xy + mv_stride * j;
                                     int mx = motion_val[direction][xy_finer][0];
                                     int my = motion_val[direction][xy_finer][1];
@@ -1638,7 +1638,7 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                                 }
                             } else if (IS_SUB_4X8(sub_mb_type[i])) {
                                 for (j = 0; j < 2; j++) {
-                                    int sx_finer = sx - 4 + 8*j;
+                                    int sx_finer = sx - 2 + 4*j;
                                     int xy_finer = xy + j;
                                     int mx = motion_val[direction][xy_finer][0];
                                     int my = motion_val[direction][xy_finer][1];
@@ -1648,8 +1648,8 @@ void ff_print_debug_info2(AVCodecContext *avctx, AVFrame *pict, uint8_t *mbskip_
                                 }
                             } else {
                                 for (j = 0; j < 4; j++) {
-                                    int sx_finer = sx - 4 + 8*(j&1);
-                                    int sy_finer = sy - 4 + 8*(j>>1);
+                                    int sx_finer = sx - 2 + 4*(j&1);
+                                    int sy_finer = sy - 2 + 4*(j>>1);
                                     int xy_finer = xy + (j&1) + mv_stride * (j>>1);
                                     int mx = motion_val[direction][xy_finer][0];
                                     int my = motion_val[direction][xy_finer][1];
